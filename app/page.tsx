@@ -1,95 +1,70 @@
-import Image from "next/image";
+"use client";
+import { useRef, useState } from "react";
 import styles from "./page.module.css";
 
 export default function Home() {
+  const [showImage, setImage] = useState<any>(null);
+  const [predictions, setPredictions] = useState<any>([]);
+  const [isLoading, setLoading] = useState(false);
+  const imgRef = useRef<null | HTMLImageElement>(null);
+
+  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+
+    const reader = new FileReader();
+    const file = event.target.files[0];
+    setPredictions([]);
+
+    reader.onload = async (e) => {
+      const imgBuffer = reader.result;
+      setImage(imgBuffer);
+      if (imgRef.current == null) {
+        console.log("Lütfen Resim Ekleyiniz");
+      } else {
+        convert(imgRef.current);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const convert = async (img: HTMLImageElement) => {
+    setLoading(true);
+    require("@tensorflow/tfjs-core");
+    require("@tensorflow/tfjs-backend-cpu");
+    const mobilenet = require("@tensorflow-models/mobilenet");
+
+    console.log("Loading Model....");
+    const model = await mobilenet.load();
+
+    console.log("Classifying Model...");
+    const predictions = await model.classify(img);
+
+    console.log("Predictions: ");
+    console.log(predictions);
+    setPredictions(predictions);
+    setLoading(false);
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+    <div className={styles.main}>
+      <div className={styles.image_container}>
+        <input type="file" name="file" onChange={handleUpload} />
+        <img ref={imgRef} src={showImage} alt="image" />
+        {isLoading && <p>Loading...</p>}
+        {predictions
+          .filter((prediction: any) => prediction.probability > 0.4)
+          .map((prediction: any) => {
+            return (
+              <>
+                <p>{prediction.className}</p>
+                <p>{prediction.probability}</p>
+              </>
+            );
+          })}
       </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    </div>
   );
 }
